@@ -1,0 +1,19 @@
+---
+- name: Hello simple message
+  hosts: all
+  tasks:
+    - name: "Task1 | Automation is Cool"
+      debug:
+        msg: I Enjoy Sys Automation
+
+    - name: "Task2 | Print Nodename and IP Address"
+      debug:
+        msg: "The Node name is {{ ansible_facts['nodename'] }} and IP address is {{ ansible_all_ipv4_addresses }}"
+         
+#    - name: Print all available facts
+#      debug:
+#        var: ansible_facts
+        
+#   - name: "Ansible | Print a variable"
+#     debug:
+#       msg: "The operating system is {{ ansible_distribution }}"
