@@ -1,5 +1,5 @@
 - name: Hello World Sample
-  hosts: all
+  hosts: "{{ _hosts | default(omit) }}"
   tasks:
     - name: Hello Message
       debug:
