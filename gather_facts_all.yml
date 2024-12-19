@@ -1,0 +1,12 @@
+---
+- name: Hello simple message
+  hosts: "{{ _hosts | default(omit) }}"
+  tasks:
+    - name: Task 1 | Print all available facts
+      debug:
+        var: ansible_facts
+
+    - name: "Task2 | Print Nodename and IP Address"
+      debug:
+        msg: "The Node name is {{ ansible_facts['nodename'] }} and IP address is {{ ansible_all_ipv4_addresses }}"
+         
