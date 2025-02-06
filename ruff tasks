@@ -1,0 +1,96 @@
+ruff tasks
+----
+Automating Insights registration and scan:
+
+    tasks:
+- name: Install subscription manager
+  ansible.builtin.package:
+    name: subscription-manager
+    state: present
+
+- name: Install insights client
+  ansible.builtin.package:
+    name: insights-client
+    state: present
+
+- name: Register RHEL server with subscription manager
+  community.general.redhat_subscription:
+    state: present
+    username: "{{ rhsm_username }}"
+    password: "{{ rhsm_password }}"
+    auto_attach: true
+
+- name: Register insights client
+  ansible.builtin.command: insights-client --register
+
+- name: Perform initial Insights upload
+  ansible.builtin.command: >
+    /bin/insights-client
+  register: __insights_scan
+  changed_when: __insights_scan.rc == 0
+
+--------
+Automating troubleshooting and fact gathering:
+
+
+        tasks:
+   - name: Backup arista configuration
+      arista.eos.eos_config:
+       backup: true
+       backup_options:
+        dir_path: /tmp/
+        filename: "{{ inventory_hostname }}.txt"
+      register: config_output
+
+    - name: BGP Check
+      arista.eos.eos_command:
+       commands: show ip bgp summary vrf all
+      register: bgp_summary
+
+    - name: Check reachability of switches
+      arista.eos.eos_command:
+       commands: "{{ switches }}"
+      register: result
+
+    - name: Format BGP Summary
+      set_fact:
+        formatted_bgp_summary: |
+          BGP Summary:
+          {{ bgp_summary.stdout_lines[0] | join('\n') if bgp_summary.stdout_lines else 'No BGP summary available.' }}
+
+    - name: Format Switch Responses
+      set_fact:
+        formatted_switch_result: |
+          Switch Responses:
+          {{ result.stdout_lines[0] | join('\n') if result.stdout_lines else 'No switch responses available.' }}
+
+    - name: Create incident
+      servicenow.itsm.incident:
+        instance:
+          host: "{{ SN_HOST }}"
+          username: "{{ SN_USERNAME }}"
+          password: "{{ SN_PASSWORD }}"
+        state: new
+        caller: "{{ SN_USERNAME }}"
+        short_description: "Network Issue detected, Troubleshooting report"
+        description: |
+          Network Issue:
+          Backups Available on each switch @: "{{ config_output }}"
+          {{ formatted_bgp_summary }}
+          {{ formatted_switch_result }}
+        impact: high
+        urgency: high
+      delegate_to: localhost
+      register: new_incident
+      run_once: true
+
+    - set_fact:
+        incident_number_cached: "{{ new_incident.record.number }}"
+        cacheable: true
+      delegate_to: localhost
+      run_once: true
+
+    - debug:
+        msg: "A new incident has been created: {{ new_incident.record.number }}"
+      delegate_to: localhost
+      run_once: true
